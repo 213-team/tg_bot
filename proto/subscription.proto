@@ -1,0 +1,59 @@
+syntax = "proto3";
+package subscription;
+option go_package = "subscriptionb";
+
+service SubscriptionService {
+    rpc ReadSubscription(ReadSubscriptionReq) returns (ReadSubscriptionRes) {}
+    rpc AddSubscription(AddSubscriptionReq) returns (AddSubscriptionRes) {}
+    rpc DeleteSubscription(DeleteSubscriptionReq) returns (DeleteSubscriptionRes) {}
+    rpc ListSubscriptions(ListSubscriptionsReq) returns (stream ListSubscriptionsRes) {}
+}
+
+message Channel {
+    string id = 1;
+}
+
+message User {
+    string id = 1;
+}
+
+message Subscription {
+    Channel channel = 1;
+    User user = 2;
+}
+
+message Status {
+    bool success = 1;
+}
+
+message ReadSubscriptionReq {
+    User user = 1;
+}
+
+message ReadSubscriptionRes {
+    Subscription Subscription = 1;
+}
+
+message AddSubscriptionReq {
+    Subscription subscription = 1;
+}
+
+message AddSubscriptionRes {
+    Status status = 1;
+}
+
+message DeleteSubscriptionReq {
+    Subscription subscription = 1;
+}
+
+message DeleteSubscriptionRes {
+    Status status = 1;
+}
+
+message ListSubscriptionsReq {
+    User user = 1;
+}
+
+message ListSubscriptionsRes {
+    Subscription subscription = 1;
+}
