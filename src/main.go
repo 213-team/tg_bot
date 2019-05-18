@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/213/tg_bot/subscriptionb"
+	"github.com/213-team/tg_bot/subscriptionb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
@@ -32,10 +33,10 @@ func init() {
 		log.Panic(err)
 	}
 	telegramBotToken = configuration.TelegramBotToken
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
 func main() {
-
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial(":50051", grpc.WithInsecure())
 
@@ -59,10 +60,10 @@ func main() {
 			continue
 		}
 
-		log.Printf("[%s] %s (%s)",
+		log.Printf("%d [%s]: %s",
+			update.Message.From.ID,
 			update.Message.From.UserName,
-			update.Message.Text,
-			update.Message.Command())
+			update.Message.Text)
 
 		switch update.Message.Command() {
 		case "start":
@@ -70,7 +71,7 @@ func main() {
 		case "help":
 			reply = help()
 		case "follow", "subscribe":
-			reply = follow(update.Message.Text, conn)
+			reply = follow(update.Message, conn)
 		}
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
@@ -79,21 +80,49 @@ func main() {
 }
 
 func help() string {
-	answer := "/subscribe or /follow to subscribe channel\n"
-	answer += "/unsubscribe or /unfollow to unsubscribe channel\n"
+	answer := "/subscribe or /follow and channel name to subscribe channel\n"
+	answer += "/unsubscribe or /unfollow and channel name to unsubscribe channel\n"
 	answer += "/recommend or /explore to get recommendations\n"
 	return answer
 }
 
-func follow(message string, conn *ClientConn) string {
-	messageFields := strings.Fields(message)
-
-	c := subscriptionb.NewChannelServiceClient(conn)
-	response, err := c.ReadChannel(context.Background(), &subscriptionb.ReadChannelReq{Id: "333"})
-	if err != nil {
-		log.Fatalf("Error when calling SayHello: %s", err)
+func follow(message *tgbotapi.Message, conn *grpc.ClientConn) string {
+	messageFields := strings.Fields(message.Text)
+	userID := strconv.Itoa(message.From.ID)
+	if len(messageFields) != 2 {
+		return help()
 	}
-	log.Printf("Response from server: %s", response.Channel.UserId)
-	return "Сашка! протобуфину мне запили. а то не могу сделать " +
-		strings.Join(messageFields, " ")
+
+	c := subscriptionb.NewSubscriptionServiceClient(conn)
+	response, err := c.AddSubscription(context.Background(),
+		&subscriptionb.AddSubscriptionReq{Subscription: &subscriptionb.Subscription{
+			Channel: &subscriptionb.Channel{Id: messageFields[1]},
+			User:    &subscriptionb.User{Id: userID}}})
+	if err != nil {
+		log.Panic("Error when calling follow: %s", err)
+	}
+	if response.Status.Success {
+		return "Now you are following " + messageFields[1]
+	}
+	return "Try again later"
+}
+func unfollow(message *tgbotapi.Message, conn *grpc.ClientConn) string {
+	messageFields := strings.Fields(message.Text)
+	userID := strconv.Itoa(message.From.ID)
+	if len(messageFields) != 2 {
+		return help()
+	}
+
+	c := subscriptionb.NewSubscriptionServiceClient(conn)
+	response, err := c.DeleteSubscription(context.Background(),
+		&subscriptionb.DeleteSubscriptionReq{Subscription: &subscriptionb.Subscription{
+			Channel: &subscriptionb.Channel{Id: messageFields[1]},
+			User:    &subscriptionb.User{Id: userID}}})
+	if err != nil {
+		log.Panic("Error when calling unfollow: %s", err)
+	}
+	if response.Status.Success {
+		return "You left channel " + messageFields[1]
+	}
+	return "Try again later"
 }
