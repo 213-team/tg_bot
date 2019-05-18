@@ -1,4 +1,8 @@
 
 #secrets
-configs/secrets.json
+src/configs/secrets.json
+
+#visual studio files
+.vscode
+.vscode/
 
